@@ -4,9 +4,9 @@ import time
 
 def timed_sort(func):
     def wrapper(*args, **kwargs):
-        start = time.time()
+        start = time.perf_counter()
         result = func(*args, **kwargs)
-        end = time.time()
+        end = time.perf_counter()
         print(f"Time taken for {len(args[0])} elements with {func.__name__}  : {end - start}")
         return result
     return wrapper
@@ -39,6 +39,7 @@ def insertion_sort(sequence):
     return sequence
 
 # Merge Sort
+
 def merge_sorted_sequences(sequence1, sequence2):
     i,j = 0,0
     merged = []
@@ -100,6 +101,22 @@ def quick_sort(sequence):
 
 # Tim Sort
 
+def compute_min_run(n):
+    # divide n by 2 until we reach even groups between 32 and 64
+    # track if any 1s are lost, add 1 to the min run if this is the case because otherwise a small group will remain. If too many 1s are lost, it doesnt work well
+    #  99: 0110 0011 49: 0011 0001
+    #  255: 1111 1111, r= 1 127: 0111 1111, 63:0011 1111 -> return 64 if return 63, then 255/63 leaves small remainder 3 group. 255/64 leaves large groups so less merging,
+    remainder = 0
+    test = 0
+    while n > 64:
+        remainder |= n & 1
+        test += remainder
+        print(test)
+        n >>= 1
+
+    return n + remainder
+
+
 def insert_sort_subarray(sequence, left = 0, right = None):
     if right is None:
         right = len(sequence) - 1
@@ -111,24 +128,65 @@ def insert_sort_subarray(sequence, left = 0, right = None):
             j -= 1
         sequence[j+1] = val
 
+def pad_ascending_runs(sequence, min_run):
+    for i in range(0,len(sequence), min_run):
+        j = i
+        while j< (upper := min(i + min_run - 1, len(sequence) - 1)):
+            if sequence[j+1] < sequence[j]:
+                insert_sort_subarray(sequence, i, upper)
+                break
+            j+= 1
+
+
+def reverse_subsequence(sequence, left, right):
+    while left < right:
+        sequence[left], sequence[right] = sequence[right], sequence[left]
+        left += 1
+        right -= 1
+
+
+def reverse_descending_runs(sequence):
+    i = 0
+    j = 0
+    while j < len(sequence)-1:
+        if sequence[j+1] > sequence[j] :
+            # print(i,sequence[i],j,sequence[j])
+            reverse_subsequence(sequence, i, j)
+            # print(sequence)
+            i = j+1
+        j+=1
+    reverse_subsequence(sequence, i, j)
+
+    return sequence
+
+
+runs = [4,3,2,1,7,8,6,3,1]
+# runs = [4,3,2,1]
 
 @timed_sort
 def tim_sort(sequence):
-    MIN_RUN = 32
+    MIN_RUN = compute_min_run(len(sequence))
 
-    for i in range(0, len(sequence), MIN_RUN):
-        insert_sort_subarray(sequence, i, min(i+MIN_RUN-1, len(sequence)-1))
+    reverse_descending_runs(sequence)
+    pad_ascending_runs(sequence, MIN_RUN)
 
-    size = MIN_RUN
-    while size < len(sequence):
-        for start in range(0, len(sequence), 2*size):
-            midpoint = start + size - 1
-            end = min((start + 2*size - 1), (len(sequence)-1))
-            merged_array = merge_sorted_sequences(
-                sequence[start:midpoint+1],
-                sequence[midpoint+1:end+1]
-            )
-            sequence[start:start+len(merged_array)] = merged_array
-        size = 2*size
+    # for i in range(0, len(sequence), MIN_RUN):
+    #
+    #     insert_sort_subarray(sequence, i, min(i+MIN_RUN-1, len(sequence)-1))
+    #
+    #
+    # size = MIN_RUN
+    # while size < len(sequence):
+    #     for start in range(0, len(sequence), 2*size):
+    #         midpoint = start + size - 1
+    #         end = min((start + 2*size - 1), (len(sequence)-1))
+    #         merged_array = merge_sorted_sequences(
+    #             sequence[start:midpoint+1],
+    #             sequence[midpoint+1:end+1]
+    #         )
+    #         sequence[start:start+len(merged_array)] = merged_array
+    #     size = 2*size
 
     return sequence
+
+print(tim_sort(runs))
