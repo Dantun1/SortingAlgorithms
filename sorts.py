@@ -107,13 +107,9 @@ def compute_min_run(n):
     #  99: 0110 0011 49: 0011 0001
     #  255: 1111 1111, r= 1 127: 0111 1111, 63:0011 1111 -> return 64 if return 63, then 255/63 leaves small remainder 3 group. 255/64 leaves large groups so less merging,
     remainder = 0
-    test = 0
     while n >= 64:
         remainder |= n & 1
-        test += remainder
-        print(test)
         n >>= 1
-
     return n + remainder
 
 
@@ -128,16 +124,6 @@ def insert_sort_subarray(sequence, left = 0, right = None):
             j -= 1
         sequence[j+1] = val
 
-# def pad_ascending_runs(sequence, min_run):
-#     for i in range(0,len(sequence), min_run):
-#         j = i
-#         while j< (upper := min(i + min_run - 1, len(sequence) - 1)):
-#             if sequence[j+1] < sequence[j]:
-#                 insert_sort_subarray(sequence, i, upper)
-#                 break
-#             j+= 1
-
-
 def reverse_subsequence(sequence, left, right):
     while left < right:
         sequence[left], sequence[right] = sequence[right], sequence[left]
@@ -145,78 +131,114 @@ def reverse_subsequence(sequence, left, right):
         right -= 1
 
 
-# def reverse_descending_runs(sequence):
-#     i = 0
-#     j = 0
-#     while j < len(sequence)-1:
-#         if sequence[j+1] > sequence[j] :
-#             # print(i,sequence[i],j,sequence[j])
-#             reverse_subsequence(sequence, i, j)
-#             # print(sequence)
-#             i = j+1
-#         j+=1
-#     reverse_subsequence(sequence, i, j)
-#
-#     return sequence
+def find_next_run(sequence, run_start, min_run):
 
-def find_and_prepare_runs(sequence, min_run):
-    i = 0
-    while i < len(sequence):
-        run_start = i
-        run_end = i + 1
-        # The last element is trivially a non-descending run of length 1 so skip remaining logic in loop
-        if run_end >= len(sequence):
-            i+=1
-            continue
-        # Check for descending run
-        if sequence[run_end] < sequence[run_start]:
-            # Find the end of the descending run and reverse
-            while run_end < len(sequence) - 1 and sequence[run_end + 1] < sequence[run_end]:
-                run_end += 1
-            reverse_subsequence(sequence, run_start, run_end)
+    run_end = run_start + 1
+    # The last element is trivially a non-descending run of length 1 so skip remaining logic in loop
+    if run_end >= len(sequence):
+        return run_end
+    # Check for descending run
+    if sequence[run_end] < sequence[run_start]:
+        # Find the end of the descending run and reverse
+        while run_end < len(sequence) - 1 and sequence[run_end + 1] < sequence[run_end]:
+            run_end += 1
+        reverse_subsequence(sequence, run_start, run_end)
+    else:
+        while run_end < len(sequence) - 1 and sequence[run_end + 1] >= sequence[run_end]:
+            run_end += 1
+
+    # Pad runs shorter than min run
+    run_length = run_end - run_start + 1
+    if run_length < min_run:
+        new_run_end = min(run_start + min_run - 1, len(sequence) - 1)
+        insert_sort_subarray(sequence, run_start, new_run_end)
+        run_end = new_run_end
+    return run_end
+
+def merge_sorted_inplace(sequence, start1, len1, start2, len2):
+    # Writer to main sequence and pointer to temp list (always 0)
+    ptr_insert = start1
+    ptr_temp = 0
+    # Copy shorter sequence into temp list, set start/end pointers to remaining main sequence portion
+    if len1 <= len2:
+        temp = sequence[start1:start1+len1]
+        ptr_main = start2
+        end_main = start2 + len2
+    else:
+        temp = sequence[start2:start2+len2]
+        ptr_main = start1
+        end_main = start1 + len1
+
+    # Insert correct element
+    while ptr_temp < len(temp) and ptr_main < end_main:
+        if temp[ptr_temp] <= sequence[ptr_main]:
+            sequence[ptr_insert] = temp[ptr_temp]
+            ptr_temp += 1
         else:
-            while run_end < len(sequence) - 1 and sequence[run_end + 1] >= sequence[run_end]:
-                run_end += 1
+            sequence[ptr_insert] = sequence[ptr_main]
+            ptr_main += 1
+        ptr_insert += 1
 
-        # Pad runs shorter than min run
-        run_length = run_end - run_start + 1
-        if run_length < min_run:
-            new_run_end = min(run_start + min_run - 1, len(sequence) - 1)
-            insert_sort_subarray(sequence, run_start, new_run_end)
-            run_end = new_run_end
-        i = run_end + 1
-    return sequence
+    # If main sequence list is depleted first, insert remaining from temp
+    while ptr_temp < len(temp):
+        sequence[ptr_insert] = temp[ptr_temp]
+        ptr_insert += 1
+        ptr_temp += 1
 
-
-
-
-
-
-
-runs = [random.randint(0,100) for _ in range(100)]
-print(find_and_prepare_runs(runs, 32))
+def merge_collapse(sequence, runs):
+    # Maintain the timsort invariants on the runs stack by collapsing where necessary if at least 3 runs exist
+    while len(runs) >= 3:
+        startA, lenA = runs[-3]
+        startB, lenB = runs[-2]
+        startC, lenC = runs[-1]
+        # Invariant 1, prevents smaller A run from being caught beneath large B+C by merging A and B if lenC > lenA
+        if lenA <= lenB + lenC:
+            if lenA < lenC:
+                merge_sorted_inplace(sequence, startA, lenA, startB, lenB)
+                runs.pop(-2)
+                runs[-2] = (startA, lenA + lenB)
+            else:
+                merge_sorted_inplace(sequence, startB, lenB, startC, lenC)
+                runs.pop()
+                runs[-1] = (startB, lenB + lenC)
+        # Invariant 2, ensures run sizes are strictly increasing deeper into the stack to setup balanced merges.
+        elif lenB <= lenC:
+            merge_sorted_inplace(sequence, startB, lenB, startC, lenC)
+            runs.pop()
+            runs[-1] = (startB, lenB + lenC)
+        else:
+            break
 
 @timed_sort
 def tim_sort(sequence):
-    MIN_RUN = compute_min_run(len(sequence))
+    n = len(sequence)
 
-    find_and_prepare_runs(sequence, MIN_RUN)
+    # Insertion sort if small
+    if n < 64:
+        return insertion_sort(sequence)
 
-    # for i in range(0, len(sequence), MIN_RUN):
-    #
-    #     insert_sort_subarray(sequence, i, min(i+MIN_RUN-1, len(sequence)-1))
-    #
-    #
-    # size = MIN_RUN
-    # while size < len(sequence):
-    #     for start in range(0, len(sequence), 2*size):
-    #         midpoint = start + size - 1
-    #         end = min((start + 2*size - 1), (len(sequence)-1))
-    #         merged_array = merge_sorted_sequences(
-    #             sequence[start:midpoint+1],
-    #             sequence[midpoint+1:end+1]
-    #         )
-    #         sequence[start:start+len(merged_array)] = merged_array
-    #     size = 2*size
+    MIN_RUN = compute_min_run(n)
+
+    # Stack-like structure to store runs as they are found
+    runs = []
+    # Pointer to start of current run
+    i = 0
+
+    # Find, prepare and merge runs while iterating through sequence
+    while i < n:
+        run_end = find_next_run(sequence, i, MIN_RUN)
+        runs.append((i, run_end - i + 1))
+        # Enforce invariants when new run discovered for optimal/balanced merging
+        merge_collapse(sequence, runs)
+
+        i = run_end + 1
+
+    # Merge remaining runs.
+    while len(runs) > 1:
+        start2, len2 = runs.pop()
+        start1, len1 = runs.pop()
+        merge_sorted_inplace(sequence, start1, len1, start2, len2)
+        runs.append((start1, len1 + len2))
 
     return sequence
+
