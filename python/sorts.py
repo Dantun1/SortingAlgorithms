@@ -105,7 +105,7 @@ def compute_min_run(n):
     # divide n by 2 until we reach even groups between 32 and 64
     # track if any 1s are lost, add 1 to the min run if this is the case because otherwise a small group will remain. If too many 1s are lost, it doesnt work well
     #  99: 0110 0011 49: 0011 0001
-    #  255: 1111 1111, r= 1 127: 0111 1111, 63:0011 1111 -> return 64 if return 63, then 255/63 leaves small remainder 3 group. 255/64 leaves large groups so less merging,
+    #  255: 1111 1111, r= 1 127: 0111 1111, 63:0011 1111 -> return 64 if return 63, then 255/63 leaves small remainder 3 group. 255/64 leaves large groups so balanced merging.
     remainder = 0
     while n >= 64:
         remainder |= n & 1
