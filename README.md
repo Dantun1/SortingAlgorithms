@@ -1,6 +1,8 @@
 # Sorting Algorithm Performance Tracker
 
-This project consists of Python implementations of key sorting algorithms to help understand how each method works and compares performance-wise.
+This project consists of Python implementations of some key sorting algorithms to help understand how each method works and compares performance-wise.
+
+**Includes**: Bubble Sort, Insertion Sort, Merge Sort, Quick Sort, Tim Sort
 
 ## Overview
 
